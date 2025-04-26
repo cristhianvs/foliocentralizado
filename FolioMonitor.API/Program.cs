@@ -60,8 +60,6 @@ builder.Services.AddScoped<IConfigurationRepository, ConfigurationRepository>();
 
 // Register Services
 builder.Services.AddScoped<IAlertService, AlertService>();
-// Register actual Email Notification Service (Task 7)
-builder.Services.AddScoped<INotificationService, EmailNotificationService>();
 
 // Add DbContext configuration ONLY if not running in the "Testing" environment
 if (!builder.Environment.IsEnvironment("Testing"))
