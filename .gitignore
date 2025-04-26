@@ -1,0 +1,116 @@
+# User-specific files
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+[Ww][Ii][Nn]32/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+
+# Visual Studio cache files
+.vs/
+*_i.c
+*_p.c
+*_h.h
+*.ilk
+*.meta
+*.obj
+*.pch
+*.pdb
+*.pgc
+*.pgd
+*.rsp
+*.sbr
+*.tlb
+*.tli
+*.tlh
+*.tmp
+*.tmp_proj
+*.log
+*.vspscc
+*.vssscc
+.builds
+*.pidb
+*.svclog
+*.scc
+
+# Rider files
+.idea/
+*.sln.iml
+
+# Resharper files
+_ReSharper*/
+*.[Rr]esharper
+*.DotSettings.user
+
+# Tooling
+_Fakes/
+*.CodeAnalysisLog.xml
+*.dll.CodeAnalysisLog.xml
+*.pyc
+*.pyo
+
+# Test results
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+*.VisualState.xml
+TestResult.xml
+*.htm
+*.html
+
+# Environment files - IMPORTANT: Never commit secrets!
+.env
+appsettings.*.json
+!appsettings.Development.json
+!appsettings.json 
+
+# Specific Files
+**/appsettings.Production.json
+
+# Output directories
+publish*/
+publish-*/
+**/publish/*
+
+# Packages
+*.nupkg
+# The packages folder can be ignored because of Package Restore
+**/packages/*
+# except build/, which is used as an MSBuild target.
+!**/packages/build/
+# Uncomment if necessary however generally it will be regenerated when needed
+#!**/packages/repositories.config
+
+# Cache files
+*.ap_.dll
+*.injected.json
+*.webbundle
+*.webbundle.br
+*.webbundle.gz
+
+# Others
+ClientBin/
+~$*
+*.dbmdl
+*.dbproj.schemaview
+*.pfx
+*.publishsettings
+node_modules/
+npm-debug.log
+yarn-error.log
+test_results.txt # Exclude test result file
+
+# If using EF Core, exclude migrations history table changes (optional, depends on team strategy)
+# Migrations/**/__EFMigrationsHistory.cs 

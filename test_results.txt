@@ -1,0 +1,22 @@
+Test Run Summary (Timestamp: 2025-04-18 approx 21:31 UTC):
+
+Command: dotnet test FolioMonitor.Tests/FolioMonitor.Tests.csproj
+
+Build: Successful (with warnings)
+Test Execution: Successful
+
+Total tests: 59
+Passed:      59
+Failed:       0
+Skipped:      0
+Duration:    ~22.7 s
+
+Breakdown:
+- FolioMonitor.Tests.API.Repositories: 17 passed
+- FolioMonitor.Tests.Worker.Models: 7 passed
+- FolioMonitor.Tests.Worker.Services: 2 passed
+- FolioMonitor.Tests.API.Controllers: 7 passed
+- FolioMonitor.Tests.API.Services.AlertServiceTests: 7 passed
+- FolioMonitor.Tests.API.Services.EmailNotificationServiceTests: 3 passed
+- FolioMonitor.Tests.API.Integration: 15 passed
+- Other (default template tests, etc.): 1 passed (likely from initial xUnit template) 

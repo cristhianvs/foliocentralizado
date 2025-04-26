@@ -1,0 +1,308 @@
+[
+  {
+    "id": 1,
+    "name": "Setup Project Foundation Layer",
+    "description": "Design and implement the initial database schema for the monitoring system (SQL Server or MySQL), define core data models (FolioSeries, FolioSummary) and repositories, and set up basic authentication/security structure for the API.",
+    "status": "done",
+    "dependencies": [],
+    "priority": "high",
+    "details": [
+      "Finalize choice of database (SQL Server or MySQL) for the monitoring system's data storage. (Using SQL Server for now)",
+      "Define SQL schema for FolioHistory table via EF Core model (columns: Id, FolioInicio, FolioFin, Modulo, FolioActual, FoliosDisponibles, Activo, FechaRegistro, Timestamp).",
+      "Define SQL schema for Configuration table via EF Core model (columns: Key, Value, Description).",
+      "Define C# entity models for FolioHistory and Configuration using Entity Framework Core attributes/conventions.",
+      "Define core C# DTO models (FolioSeries, FolioSummary as per PRD) for API communication.",
+      "Implement basic repository pattern (e.g., IFolioHistoryRepository, IConfigurationRepository) and concrete implementations using EF Core.",
+      "Configure EF Core DbContext, including connection string management (using appsettings.json / environment variables).",
+      "Set up basic API Key authentication middleware or placeholder for future authentication in the ASP.NET Core API project."
+    ],
+    "test_strategy": [
+      "Verify schema creation via EF Core Migrations.",
+      "Unit test repository methods using an in-memory database provider or mocking.",
+      "Write integration tests to ensure the API can connect to the configured database.",
+      "Test API authentication middleware blocks requests without valid credentials/keys."
+    ]
+  },
+  {
+    "id": 2,
+    "name": "Implement Data Collection Layer (Worker Service)",
+    "description": "Create the .NET Worker Service project. Implement logic to query the existing store MySQL database daily using provided SQL queries to calculate available folios for MOD28 and MOD29. Implement scheduled execution mechanism.",
+    "status": "done",
+    "dependencies": [1],
+    "priority": "high",
+    "details": [
+      "Create a new .NET Worker Service project (FolioMonitor.Worker). (Done in setup)",
+      "Implement configuration (appsettings.json) to store connection string for the existing MySQL database and the target API endpoint URL.",
+      "Implement a service (e.g., MySqlQueryService) to connect to MySQL (using MySql.Data or similar) and execute the provided SQL queries for MOD28 and MOD29.",
+      "Implement logic to parse the query results and calculate folios_disponibles accurately, handling folioactual being NULL.",
+      "Implement a service (e.g., ApiClientService) to format the collected data into the expected JSON payload and POST it to the /api/folios/update endpoint of the Web API.",
+      "Implement the main BackgroundService class to orchestrate the daily execution (querying MySQL, posting to API).",
+      "Configure scheduling (e.g., using PeriodicTimer or a CRON library like NCrontab.Scheduler) for daily execution.",
+      "Implement robust error handling and logging for DB connection, query execution, and API calls."
+    ],
+    "test_strategy": [
+      "Unit test the folio calculation logic with various inputs (null/non-null folioactual, Activo status).",
+      "Unit test the API client service using a mock HTTP client.",
+      "Write integration tests connecting to a test MySQL database to verify query execution and data parsing.",
+      "Test the scheduling mechanism triggers correctly.",
+      "Verify error handling logs issues appropriately."
+    ]
+  },
+  {
+    "id": 3,
+    "name": "Implement API Layer (ASP.NET Core Web API)",
+    "description": "Set up the ASP.NET Core Web API project. Implement core API endpoints: POST /api/folios/update, GET /api/folios/summary, GET /api/folios/invoices, GET /api/folios/creditnotes. Define DTOs and basic validation.",
+    "status": "done",
+    "dependencies": [1],
+    "priority": "high",
+    "details": [
+      "Create a new ASP.NET Core Web API project (FolioMonitor.API). (Done in setup)",
+      "Implement controller FoliosController.",
+      "Implement POST /api/folios/update endpoint: Accepts the JSON payload from the Worker Service, validates the DTO, and passes data to a service/repository for persistence (links to Task 4). Apply authentication/authorization (basic API key or placeholder).",
+      "Implement GET /api/folios/summary endpoint: Retrieves the latest overall summary (total available per type) from the database/cache.",
+      "Implement GET /api/folios/invoices endpoint: Retrieves detailed series information for invoice folios (MOD28).",
+      "Implement GET /api/folios/creditnotes endpoint: Retrieves detailed series information for credit note folios (MOD29).",
+      "Define DTOs used for request bodies and response payloads, leveraging models from Task 1.",
+      "Implement dependency injection for services and repositories.",
+      "Set up global error handling middleware."
+    ],
+    "test_strategy": [
+      "Unit test controller actions using mock services/repositories.",
+      "Write integration tests for each endpoint, verifying input validation, service calls, and expected responses (success/error).",
+      "Test authentication/authorization on relevant endpoints.",
+      "Verify correct HTTP status codes and response formats."
+    ]
+  },
+  {
+    "id": 4,
+    "name": "Implement Persistence Layer",
+    "description": "Implement the logic for storing the daily folio availability data received from the Worker Service into the monitoring system's database (historical tracking). Configure data access patterns (e.g., using Entity Framework Core).",
+    "status": "done",
+    "dependencies": [1, 2, 3],
+    "priority": "high",
+    "details": [
+      "Inject the IFolioHistoryRepository (from Task 1) into the service layer used by the POST /api/folios/update endpoint.",
+      "Implement the service logic to map the received DTO data to FolioHistory entities.",
+      "Add logic to timestamp each record (FechaRegistro).",
+      "Call the repository method to save the FolioHistory records to the database within the /api/folios/update request handling.",
+      "Implement repository methods needed for the GET endpoints (Task 3) to retrieve the latest status or summaries.",
+      "Consider transaction management if multiple records are saved within one request."
+    ],
+    "test_strategy": [
+      "Unit test the service logic responsible for mapping DTOs and calling the repository.",
+      "Write integration tests for the POST /api/folios/update endpoint, verifying that the correct data is persisted in the FolioHistory table after the call.",
+      "Verify data retrieval logic for GET endpoints retrieves the correct historical/latest data."
+    ]
+  },
+  {
+    "id": 5,
+    "name": "Implement Basic Logging (MVP)",
+    "description": "Implement a basic logging mechanism across the Web API and Worker Service to record key events, errors, and daily execution status.",
+    "status": "done",
+    "dependencies": [2, 3],
+    "priority": "medium",
+    "details": [
+      "Configure Microsoft.Extensions.Logging in both FolioMonitor.API and FolioMonitor.Worker projects (Program.cs / Startup.cs).",
+      "Inject ILogger<T> into controllers, services, and background tasks where logging is needed.",
+      "Add informative log messages (Info level) for key operations: Worker start/stop, query execution start/end, number of records found, API request received, API response sent.",
+      "Add detailed log messages (Debug level) for troubleshooting specific steps.",
+      "Add error log messages (Error level) within exception handlers, including exception details.",
+      "Configure logging providers (e.g., Console, Debug, optionally File or Azure Application Insights)."
+    ],
+    "test_strategy": [
+      "Run the Worker Service and API, then inspect console/debug output (or configured files/Azure Monitor) to verify logs are generated.",
+      "Simulate error conditions (e.g., DB connection failure, invalid API payload) and verify errors are logged correctly with sufficient detail.",
+      "Ensure sensitive data (like connection strings) is not logged."
+    ]
+  },
+  {
+    "id": 6,
+    "name": "Implement Alert System Logic",
+    "description": "Develop the logic within the API or a separate service to evaluate folio availability against configurable thresholds and determine when alerts (warning, critical) should be triggered.",
+    "status": "done",
+    "dependencies": [4],
+    "priority": "medium",
+    "details": [
+      "Add logic (likely within the service handling POST /api/folios/update or a separate scheduled check) to retrieve alert thresholds from the Configuration table (Task 1).",
+      "Compare the newly received foliosDisponibles for each series against the configured warning and critical thresholds.",
+      "Maintain state or check previous status to avoid sending repeated alerts for the same condition daily.",
+      "If a threshold is crossed, trigger an event or call the notification service (Task 7), passing alert details (series info, level).",
+      "Define data structure/model for alert information."
+    ],
+    "test_strategy": [
+      "Unit test the threshold comparison logic thoroughly with different availability numbers and threshold values.",
+      "Test the state management logic (avoiding duplicate alerts).",
+      "Write integration tests simulating POST /api/folios/update with data below thresholds and verify the notification service (mocked) is called correctly."
+    ]
+  },
+  {
+    "id": 7,
+    "name": "Implement Email Notification System",
+    "description": "Create a service responsible for sending email notifications when the Alert System triggers an alert. Configure SMTP settings. Manage notification recipients (potentially configurable).",
+    "status": "done",
+    "dependencies": [6],
+    "priority": "medium",
+    "details": [
+      "Create a new service (e.g., EmailNotificationService).",
+      "Integrate an email library (e.g., MailKit).",
+      "Implement configuration (appsettings.json) for SMTP server details (host, port, credentials). Consider using Azure Key Vault for credentials.",
+      "Implement logic to retrieve recipient email addresses (initially hardcoded or from Configuration table).",
+      "Implement method(s) to accept alert details and format them into clear email subjects and bodies.",
+      "Implement email sending logic, including error handling for SMTP connection/send failures.",
+      "Inject and call this service from the Alert System logic (Task 6)."
+    ],
+    "test_strategy": [
+      "Unit test email formatting logic.",
+      "Write integration tests using a mock SMTP server (like smtp4dev) or test email accounts to verify emails are sent correctly when alerts are triggered.",
+      "Test error handling for invalid SMTP configuration or send failures."
+    ]
+  },
+  {
+    "id": 8,
+    "name": "Implement Extended API Reporting Endpoints",
+    "description": "Add more detailed reporting endpoints to the API as needed, potentially including filtering or date range queries for historical data.",
+    "status": "done",
+    "dependencies": [4],
+    "priority": "low",
+    "details": [
+      "Define specific requirements for new reports (e.g., GET /api/folios/history?module=MOD28&startDate=...&endDate=...).",
+      "Implement new repository methods in IFolioHistoryRepository to support filtering/querying by date range, module, etc.",
+      "Implement new controller actions in FoliosController for the defined report endpoints.",
+      "Implement service layer logic to call repositories and format data into appropriate DTOs for the reports.",
+      "Consider adding pagination for potentially large historical datasets (skip, take parameters)."
+    ],
+    "test_strategy": [
+      "Unit test new service and repository methods.",
+      "Write integration tests for the new API endpoints, verifying filtering, date range logic, and pagination work correctly.",
+      "Test performance of historical queries with significant amounts of data."
+    ]
+  },
+  {
+    "id": 9,
+    "name": "Implement Data Retention Policies",
+    "description": "Define and implement automated policies for archiving or deleting old historical folio data from the monitoring database to manage storage growth.",
+    "status": "done",
+    "dependencies": [4],
+    "priority": "low",
+    "details": [
+      "Define the retention period (e.g., 1 year, 6 months) - make it configurable in the Configuration table.",
+      "Implement logic to delete records from FolioHistory older than the configured retention period.",
+      "Choose implementation method: a) Add logic to the existing Worker Service b) Create a separate small Worker Service c) Create a database stored procedure.",
+      "Ensure the deletion logic is efficient and handles potential errors gracefully."
+    ],
+    "test_strategy": [
+      "Populate the database with historical data spanning beyond the retention period.",
+      "Manually trigger or run the cleanup job/logic.",
+      "Verify that only records older than the retention period are deleted and recent data remains untouched.",
+      "Test edge cases (e.g., no old data to delete)."
+    ]
+  },
+  {
+    "id": 10,
+    "name": "Implement API Documentation (Swagger/OpenAPI)",
+    "description": "Integrate Swagger/OpenAPI documentation into the ASP.NET Core Web API project to provide interactive documentation for all endpoints.",
+    "status": "done",
+    "dependencies": [3, 8],
+    "priority": "medium",
+    "details": [
+      "Add the Swashbuckle.AspNetCore NuGet package to the FolioMonitor.API project.",
+      "Configure Swagger generation and UI in Program.cs / Startup.cs.",
+      "Add XML comments (<summary>, <param>, <returns>) to controller actions and DTOs to provide descriptions.",
+      "Configure the build process to generate the XML documentation file.",
+      "Annotate endpoints requiring authentication (e.g., using [Authorize] attributes and configuring Swagger security definitions)."
+    ],
+    "test_strategy": [
+      "Run the API project and navigate to the Swagger UI endpoint (e.g., /swagger).",
+      "Verify all public API endpoints are listed.",
+      "Check that descriptions from XML comments appear correctly.",
+      "Verify request/response models (DTOs) are accurately represented.",
+      "Test the \"Try it out\" functionality for key endpoints."
+    ]
+  },
+  {
+    "id": 11,
+    "name": "Develop Dashboard UI Frontend",
+    "description": "Create the frontend application (e.g., using React, Angular, Blazor) to consume the Web API and display the folio status dashboard, including visualizations.",
+    "status": "done",
+    "dependencies": [3, 10],
+    "priority": "medium",
+    "details": [
+      "Set up the chosen frontend framework project (React assumed unless specified otherwise).",
+      "Implement API service layer (using Axios/Fetch) to call documented API endpoints.",
+      "Implement authentication flow (Login page, token storage, authenticated requests).",
+      "Create components to display data from /summary, /invoices, /creditnotes.",
+      "Use a UI library (e.g., Material UI) for layout, tables, cards, status indicators (color-coded).",
+      "Integrate a charting library (e.g., Chart.js, Recharts) for visualizations if required.",
+      "Implement basic responsiveness for desktop/mobile.",
+      "Implement routing for different views/pages."
+    ],
+    "test_strategy": [
+      "Unit/Component test individual UI components with mock data.",
+      "Write integration tests verifying components fetch and display data correctly from a mock API or test backend.",
+      "Perform E2E tests simulating user flows (login, view dashboard, view details).",
+      "Test responsiveness on different screen sizes/devices.",
+      "Cross-browser compatibility testing."
+    ]
+  },
+  {
+    "id": 12,
+    "name": "Implement Trend Analysis & Forecasting",
+    "description": "Develop backend logic and potentially new API endpoints to analyze historical folio usage data and provide trend insights or simple forecasts for depletion.",
+    "status": "pending",
+    "dependencies": [4, 8],
+    "priority": "low",
+    "details": [
+      "Define the specific analysis required (e.g., average daily/weekly consumption per series, estimated days until depletion).",
+      "Implement service layer logic in the backend to query FolioHistory data.",
+      "Perform calculations (e.g., grouping, averaging consumption rates).",
+      "Implement new API endpoints (e.g., GET /api/folios/trends?seriesId=...) to expose analysis results.",
+      "(Optional) Integrate results into the frontend dashboard (Task 11)."
+    ],
+    "test_strategy": [
+      "Unit test calculation logic with various historical data patterns.",
+      "Write integration tests for the new API endpoints, verifying the accuracy of calculated trends/forecasts.",
+      "Validate forecasting logic against manual projections."
+    ]
+  },
+  {
+    "id": 13,
+    "name": "Integrate Additional Notification Channels",
+    "description": "Extend the notification system to support channels beyond email, such as SMS, Microsoft Teams, or Slack, based on requirements.",
+    "status": "pending",
+    "dependencies": [7],
+    "priority": "low",
+    "details": [
+      "Identify required channels (SMS, Teams, Slack, etc.).",
+      "Research and select appropriate libraries or SDKs for each channel.",
+      "Extend the Configuration system to store API keys/webhooks/credentials securely.",
+      "Abstract the notification logic (e.g., using an INotificationService interface).",
+      "Implement new notification service classes for each required channel.",
+      "Update the Alert System logic (Task 6) to potentially send notifications via multiple configured channels."
+    ],
+    "test_strategy": [
+      "Unit test new notification service implementations using mocks for external APIs.",
+      "Perform integration tests sending actual notifications to test accounts/channels.",
+      "Verify configuration allows enabling/disabling specific channels."
+    ]
+  },
+  {
+    "id": 14,
+    "name": "Implement Report Export Functionality",
+    "description": "Add functionality to the API and/or UI to allow users to export folio status reports or historical data in formats like PDF or Excel.",
+    "status": "pending",
+    "dependencies": [8, 11],
+    "priority": "low",
+    "details": [
+      "Choose export formats (PDF, Excel/CSV).",
+      "Select server-side libraries for generation (e.g., ClosedXML, QuestPDF).",
+      "Implement new API endpoints (e.g., GET /api/folios/export?format=excel) that fetch data, generate the file, and return it.",
+      "(Optional) Add buttons/links in the frontend UI (Task 11) to trigger exports.",
+      "Consider parameters for customizing exports."
+    ],
+    "test_strategy": [
+      "Unit test file generation logic.",
+      "Write integration tests for the export API endpoints.",
+      "Download generated files and manually verify format, data accuracy, and layout."
+    ]
+  }
+] 

@@ -1,0 +1,248 @@
+# Fiscal Folio Monitoring System - PRD
+
+## Overview
+A proactive monitoring system for fiscal folios in the Dominican Republic that alerts about folio availability for invoices and credit notes, helping to prevent business operation interruptions due to folio depletion.
+
+## Core Features
+### Real-time Folio Monitoring
+- **What it does**: Tracks the available folios for invoices (MOD28) and credit notes (MOD29) by querying the database daily
+- **Why it's important**: Prevents business disruption due to folio exhaustion, which could result in inability to issue invoices
+- **How it works**: A Worker Service runs SQL queries against the existing database to calculate remaining folios
+
+### Availability Dashboard
+- **What it does**: Provides a comprehensive view of all folio series with their current usage status
+- **Why it's important**: Gives administrators visibility into folio inventory to plan ahead
+- **How it works**: Web API endpoints expose the data for consumption by front-end applications
+
+### Alert System
+- **What it does**: Notifies stakeholders when folio availability falls below configurable thresholds
+- **Why it's important**: Enables proactive management of folio inventory
+- **How it works**: Configurable thresholds trigger different levels of alerts (warning, critical)
+
+### Historical Tracking
+- **What it does**: Maintains historical records of folio availability over time
+- **Why it's important**: Allows for analysis of usage patterns and forecasting future needs
+- **How it works**: Each daily check is stored in a database with timestamp information
+
+## User Experience
+### User Personas
+- **System Administrator**: Manages the entire folio monitoring system
+- **Finance Manager**: Needs visibility into folio availability to avoid business disruption
+- **IT Support**: Monitors system health and responds to technical issues
+
+### Key User Flows
+- Administrator configures alert thresholds and notification recipients
+- Finance Manager reviews daily report of folio availability
+- IT Support responds to critical alerts about low folio availability
+
+### UI/UX Considerations
+- Clean, minimalist dashboard showing folio status at a glance
+- Color-coded status indicators (green, yellow, red) for different availability levels
+- Responsive design for both desktop and mobile access
+
+## Technical Architecture
+### System Components
+- **ASP.NET Core Web API**: Backend service that provides endpoints for folio data
+- **Worker Service**: Background service that runs daily to check folio availability
+- **Database**: Stores historical folio availability data for analysis
+- **Notification System**: Sends alerts via email when thresholds are reached
+
+### Data Models
+```csharp
+public class FolioSeries
+{
+    public int Id { get; set; }
+    public int FolioInicio { get; set; }
+    public int FolioFin { get; set; }
+    public string Modulo { get; set; } // "MOD28" for Invoices or "MOD29" for Credit Notes
+    public int? FolioActual { get; set; } // Null if no folio has been used yet
+    public bool Activo { get; set; }
+    public int FoliosDisponibles { get; set; }
+    public DateTime FechaRegistro { get; set; }
+}
+
+public class FolioSummary
+{
+    public string DocumentType { get; set; } // "Invoice" or "Credit Note"
+    public int TotalAvailableFolios { get; set; }
+    public List<FolioSeries> Series { get; set; }
+}
+```
+
+### APIs and Integrations
+- **POST /api/folios/update**: Receives folio availability data from the Worker Service
+- **GET /api/folios/summary**: Returns overall summary of folio availability
+- **GET /api/folios/invoices**: Returns detailed information about invoice folios
+- **GET /api/folios/creditnotes**: Returns detailed information about credit note folios
+- **Integration with existing MySQL database**: Connects to the existing folio control table
+
+### Infrastructure Requirements
+- .NET 8.0 runtime environment
+- MySQL database server for the existing system
+- SQL Server or MySQL for the monitoring system's own database
+- SMTP server for email notifications
+- Hosting environment for the Web API (IIS, Docker, or cloud service)
+- Windows Server for hosting the Worker Service
+
+## Development Roadmap
+### Phase 1: MVP (Minimum Viable Product)
+- Basic Worker Service implementation that queries folio data
+- Core Web API endpoints for receiving and querying folio data
+- Simple authentication mechanism for API security
+- Database schema for storing folio history
+- Basic logging mechanism
+
+### Phase 2: Enhanced Functionality
+- Alert system with configurable thresholds
+- Email notification system for alerts
+- Extended API endpoints for more detailed reporting
+- Implementation of data retention policies
+- Swagger/OpenAPI documentation
+
+### Phase 3: Advanced Features
+- Dashboard UI for visualizing folio status
+- Trend analysis of folio usage patterns
+- Forecast projections for folio depletion
+- Integration with additional notification channels (SMS, Teams, Slack)
+- Export functionality for reports (PDF, Excel)
+
+## Logical Dependency Chain
+1. **Foundation Layer**
+   - Database schema design and implementation
+   - Core models and repositories
+   - Basic authentication and security
+
+2. **Data Collection Layer**
+   - Worker Service implementation
+   - SQL query logic for folio calculation
+   - Scheduled execution mechanism
+
+3. **API Layer**
+   - Web API project setup
+   - Core endpoints implementation
+   - DTO definitions and validations
+
+4. **Persistence Layer**
+   - Historical data storage
+   - Data access patterns
+   - Entity Framework configurations
+
+5. **Notification Layer**
+   - Alert threshold configuration
+   - Email notification service
+   - Alert logging and tracking
+
+6. **Presentation Layer**
+   - API for dashboard consumption
+   - Report generation
+   - Data visualization endpoints
+
+## Risks and Mitigations
+### Technical Challenges
+- **Risk**: Incorrect calculation of available folios
+  - **Mitigation**: Thorough unit testing of calculation logic, validation against manual calculations
+
+- **Risk**: Performance issues with database queries
+  - **Mitigation**: Optimized queries, appropriate indexing, consider caching strategies
+
+- **Risk**: Worker Service reliability
+  - **Mitigation**: Implement robust error handling, retries, and monitoring
+
+### Integration Challenges
+- **Risk**: Changes to the existing database schema
+  - **Mitigation**: Design for loose coupling, implement adapters that can be modified if source schema changes
+
+- **Risk**: Authentication and authorization complexity
+  - **Mitigation**: Use standard OAuth 2.0 or API key approach, with clear documentation
+
+### Operational Challenges
+- **Risk**: False positive alerts
+  - **Mitigation**: Configurable thresholds, alert verification processes, gradual alert levels
+
+- **Risk**: System scalability as folio series grow
+  - **Mitigation**: Implement pagination, optimize queries, consider data archiving strategies
+
+## Appendix
+### SQL Queries
+```sql
+-- For Invoices (MOD28)
+SELECT FolioInicio, FolioFin, folioactual, 
+CASE 
+   WHEN folioactual IS NULL THEN FolioFin - FolioInicio + 1
+   WHEN Activo = 1 THEN FolioFin - folioactual
+   ELSE 0
+END AS folios_disponibles 
+FROM gts_05controlfolios 
+WHERE Modulo = 'MOD28' AND Activo = 1;
+
+-- For Credit Notes (MOD29)
+SELECT FolioInicio, FolioFin, folioactual, 
+CASE 
+   WHEN folioactual IS NULL THEN FolioFin - FolioInicio + 1
+   WHEN Activo = 1 THEN FolioFin - folioactual
+   ELSE 0
+END AS folios_disponibles 
+FROM gts_05controlfolios 
+WHERE Modulo = 'MOD29' AND Activo = 1;
+```
+
+### API Payload Example
+```json
+{
+  "fechaConsulta": "2025-04-13T02:00:00",
+  "facturas": [
+    {
+      "folioInicio": 913,
+      "folioFin": 1204,
+      "folioActual": 998,
+      "foliosDisponibles": 206
+    },
+    {
+      "folioInicio": 1,
+      "folioFin": 100,
+      "folioActual": 100,
+      "foliosDisponibles": 0
+    },
+    {
+      "folioInicio": 101,
+      "folioFin": 200,
+      "folioActual": null,
+      "foliosDisponibles": 100
+    }
+  ],
+  "notasCredito": [
+    {
+      "folioInicio": 500,
+      "folioFin": 700,
+      "folioActual": 650,
+      "foliosDisponibles": 50
+    }
+  ]
+}
+```
+
+### Project Structure
+```
+FolioMonitor/
+├── FolioMonitor.API/             # ASP.NET Core Web API Project
+│   ├── Controllers/              # API Controllers
+│   ├── Models/                   # Models and DTOs
+│   ├── Services/                 # Business Services
+│   ├── Repositories/             # Data Access
+│   ├── appsettings.json          # Configuration
+│   └── Program.cs                # Entry Point
+│
+├── FolioMonitor.Worker/          # Worker Service Project
+│   ├── Services/                 # Query Services
+│   ├── Models/                   # Shared Models
+│   ├── appsettings.json          # Configuration
+│   └── Program.cs                # Entry Point
+│
+├── FolioMonitor.Core/            # Shared Library
+│   ├── Models/                   # Domain Models
+│   └── Interfaces/               # Shared Interfaces
+│
+└── FolioMonitor.Tests/           # Test Project
+    ├── API/                      # API Tests
+    └── Worker/                   # Worker Tests
+```

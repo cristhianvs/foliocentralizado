@@ -1,0 +1,167 @@
+﻿@page "/"
+@inject IHttpClientFactory HttpClientFactory
+@using System.Net.Http.Json
+@using FolioMonitor.Core.Models.DTOs
+@using System.Linq
+
+<PageTitle>Folio Monitor Dashboard</PageTitle>
+
+<h1>Folio Monitor Dashboard</h1>
+
+@if (errorMessage != null)
+{
+    <div class="alert alert-danger" role="alert">
+        Error fetching data: @errorMessage
+    </div>
+}
+else if (groupedStoreData == null)
+{
+    <p><em>Loading...</em></p>
+}
+else if (!groupedStoreData.Any())
+{
+     <p><em>No folio data found.</em></p>
+}
+else
+{
+    @foreach (var storeData in groupedStoreData.OrderBy(s => s.StoreCode))
+    {
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                 <h2>Store: @storeData.StoreCode</h2>
+            </div>
+            <div class="card-body">
+                @* --- Invoice Section for this Store --- *@
+                <h4>Invoice Status</h4>
+                @if (storeData.InvoiceSeries.Any())
+                {
+                    <h5 class="card-title mb-2">Total Available: @storeData.InvoiceSeries.Sum(s => s.FoliosDisponibles)</h5>
+                    <table class="table table-sm table-striped table-bordered">
+                        <thead class="thead-light">
+                            <tr>
+                                <th>Store Code</th> 
+                                <th>Start</th>
+                                <th>End</th>
+                                <th>Current</th>
+                                <th>Available</th>
+                                <th>Monitored At (UTC)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var series in storeData.InvoiceSeries.OrderByDescending(s => s.Timestamp))
+                            {
+                                <tr class="@(GetRowClass(series.FoliosDisponibles))">
+                                    <td>@series.CodigoSucursal</td> 
+                                    <td>@series.FolioInicio</td>
+                                    <td>@series.FolioFin</td>
+                                    <td>@(series.FolioActual?.ToString() ?? "N/A")</td>
+                                    <td>@series.FoliosDisponibles</td>
+                                    <td>@series.Timestamp.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+                else
+                {
+                    <p><em>No active invoice series found for this store.</em></p>
+                }
+
+                <hr /> @* Separator *@
+
+                @* --- Credit Note Section for this Store --- *@
+                 <h4>Credit Note Status</h4>
+                 @if (storeData.CreditNoteSeries.Any())
+                 {
+                    <h5 class="card-title mb-2">Total Available: @storeData.CreditNoteSeries.Sum(s => s.FoliosDisponibles)</h5>
+                    <table class="table table-sm table-striped table-bordered">
+                        <thead class="thead-light">
+                            <tr>
+                                <th>Store Code</th> 
+                                <th>Start</th>
+                                <th>End</th>
+                                <th>Current</th>
+                                <th>Available</th>
+                                <th>Monitored At (UTC)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var series in storeData.CreditNoteSeries.OrderByDescending(s => s.Timestamp))
+                            {
+                                <tr class="@(GetRowClass(series.FoliosDisponibles))">
+                                    <td>@series.CodigoSucursal</td>
+                                    <td>@series.FolioInicio</td>
+                                    <td>@series.FolioFin</td>
+                                    <td>@(series.FolioActual?.ToString() ?? "N/A")</td>
+                                    <td>@series.FoliosDisponibles</td>
+                                     <td>@series.Timestamp.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                 }
+                 else
+                 {
+                      <p><em>No active credit note series found for this store.</em></p>
+                 }
+            </div> @* End card-body *@
+        </div> @* End card *@
+    }
+}
+
+@code {
+    // Class to hold grouped data for the view
+    private class StoreDisplayData
+    {
+        public string StoreCode { get; set; } = string.Empty;
+        public List<FolioSeriesDto> InvoiceSeries { get; set; } = new List<FolioSeriesDto>();
+        public List<FolioSeriesDto> CreditNoteSeries { get; set; } = new List<FolioSeriesDto>();
+    }
+
+    private List<StoreDisplayData>? groupedStoreData;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var client = HttpClientFactory.CreateClient("FolioApiClient");
+        try
+        {
+            // Fetch the data as before (it's flat list grouped by DocType)
+            var summaries = await client.GetFromJsonAsync<List<FolioSummaryDto>>("api/folios/summary");
+
+            if (summaries != null)
+            {
+                // Process and group the data by Store Code
+                var allSeries = summaries.SelectMany(s => s.Series); // Flatten the list
+                
+                groupedStoreData = allSeries
+                    .GroupBy(s => s.CodigoSucursal) // Group by Store
+                    .Select(g => new StoreDisplayData
+                    {
+                        StoreCode = g.Key,
+                        InvoiceSeries = g.Where(s => s.Modulo == "MOD28").ToList(),
+                        CreditNoteSeries = g.Where(s => s.Modulo == "MOD29").ToList()
+                    })
+                    .ToList();
+            }
+            else
+            {
+                 groupedStoreData = new List<StoreDisplayData>(); // Ensure not null
+            }
+        }
+        catch (Exception ex)
+        {
+            // Log the exception details if necessary
+            errorMessage = ex.Message;
+            Console.Error.WriteLine($"Error fetching or processing folio data: {ex}"); // Log full error
+        }
+    }
+
+    private string GetRowClass(int available)
+    {
+        // Basic coloring logic - enhance as needed
+        if (available <= 20) return "table-danger";
+        if (available <= 100) return "table-warning";
+        return ""; // Default or table-success
+    }
+}

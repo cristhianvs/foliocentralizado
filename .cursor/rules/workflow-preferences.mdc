@@ -1,0 +1,31 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Folio Monitoring System - Cursor AI Coding Workflow Preferences
+
+## General Coding Patterns (User Provided)
+- Always prefer simple solutions.
+- Avoid duplication of code whenever possible, which means checking for other areas of the codebase that might already have similar code and functionality.
+- Write code that takes into account the different environments: dev, test, and prod.
+- Be careful to only make changes that are requested or you are confident are well understood and related to the change being requested.
+- When fixing an issue or bug, do not introduce a new pattern or technology without first exhausting all options for the existing implementation. If a new pattern is necessary, ensure the old implementation is removed afterwards to avoid duplicate logic.
+- Keep the codebase very clean and organized.
+- Avoid writing one-off scripts directly in project files if possible.
+- Aim to keep files concise, generally under 200-300 lines of code. Refactor larger files into smaller, focused modules.
+- Mocking data is strictly for tests; never introduce mock data into dev or prod environment code paths.
+- Never add stubbing or fake data patterns to code that affects the dev or prod environments.
+- Never overwrite sensitive configuration files like `.env` without explicit user confirmation.
+
+## Project-Specific Workflow & Context (Folio Monitoring System)
+- **Task Focus:** When working on a task, always refer to the relevant Task ID in the `tasks.json` file (derived from `Tasks list.txt` [cite: 27]). Prioritize implementing the steps listed under `# Details` [cite: 28, 42, 56, 66, 75, 85, 93, 103, 111, 121, 130, 142, 150, 159] and adhere to the approach outlined in the `# Test Strategy` [cite: 36, 50, 62, 71, 81, 99, 107, 117, 126, 137, 147, 156, 165] for that specific task.
+- **Code Relevance:** Focus changes strictly on the files and modules relevant to the current task described in `tasks.json`. Do not modify unrelated code sections or files.
+- **Contextual Awareness:** Always consider the overall project architecture described in `folio-monitoring-prd.txt` [cite: 4, 5, 14, 15, 16, 17] (ASP.NET Core API, .NET Worker Service, Central DB, EF Core, etc.) when generating code. Refer to the PRD for clarification on features or technical decisions.
+- **Technology Stack Adherence:** Implement solutions using the specified technologies: C#, .NET 8, ASP.NET Core, EF Core, Worker Services[cite: 4, 14]. Follow standard patterns for these technologies (e.g., Dependency Injection, `async/await`, `ILogger<T>`).
+- **Database Interaction:** Use the defined EF Core `DbContext` and established repository patterns (e.g., `IFolioHistoryRepository` [cite: 33, 66]) for all database operations related to the central monitoring database. Ensure the **critical folio assignment logic uses atomic database transactions** to prevent race conditions.
+- **Project Structure:** Adhere to the project structure outlined in `folio-monitoring-prd.txt` [cite: 22, 23, 24, 25, 26] when creating new files or modules (API, Worker, Core, Tests).
+- **Testing:** Write thorough unit and integration tests (using xUnit or NUnit) covering the core logic implemented, as guided by the `# Test Strategy` for each task[cite: 36, 50, 62, 71, 81, 99, 107, 117, 126, 137, 147, 156, 165].
+- **Logging:** Implement logging using `ILogger<T>` for significant operations, errors, and warnings in both the API and Worker Service[cite: 75, 76, 77, 79].
+- **Impact Assessment:** Before finalizing changes, briefly consider and state what other methods, services, or parts of the application might be affected by the modifications being made.
+- **Task Status Update Reminder:** Upon successful implementation and testing of a task based on its definition in `tasks.json`, **remind the user** that they need to manually update the `status` of the corresponding task ID in the `tasks.json` file to `"done"`.

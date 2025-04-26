@@ -1,0 +1,269 @@
+Task Master Task List: Folio Monitoring System (Expanded)
+
+1. Setup Project Foundation Layer
+* Description: Design and implement the initial database schema for the monitoring system (SQL Server or MySQL), define core data models (FolioSeries, FolioSummary) and repositories, and set up basic authentication/security structure for the API.
+* Status: pending
+* Dependencies: []
+* Priority: high
+* # Details:
+1.  Finalize choice of database (SQL Server or MySQL) for the monitoring system's data storage.
+2.  Define SQL schema for FolioHistory table to store daily snapshots (columns: Id, FolioInicio, FolioFin, Modulo, FolioActual, FoliosDisponibles, Activo, FechaRegistro, Timestamp).
+3.  Define SQL schema for Configuration table (columns: Key, Value, Description).
+4.  Define C# entity models for FolioHistory and Configuration using Entity Framework Core attributes/conventions.
+5.  Define core C# DTO models (FolioSeries, FolioSummary as per PRD ) for API communication.
+6.  Implement basic repository pattern (e.g., IFolioHistoryRepository, IConfigurationRepository) and concrete implementations using EF Core.
+7.  Configure EF Core DbContext, including connection string management (using appsettings.json / environment variables).
+8.  Set up basic API Key authentication middleware or placeholder for future authentication in the ASP.NET Core API project.
+* # Test Strategy:
+1.  Verify schema creation via EF Core Migrations (or manual script).
+2.  Unit test repository methods using an in-memory database provider or mocking.
+3.  Write integration tests to ensure the API can connect to the configured database.
+4.  Test API authentication middleware blocks requests without valid credentials/keys.   
+
+2. Implement Data Collection Layer (Worker Service)
+* Description: Create the .NET Worker Service project. Implement logic to query the existing store MySQL database daily using provided SQL queries to calculate available folios for MOD28 and MOD29. Implement scheduled execution mechanism.
+* Status: pending
+* Dependencies: [1]
+* Priority: high
+* # Details:
+1.  Create a new .NET Worker Service project (FolioMonitor.Worker).
+2.  Implement configuration (appsettings.json) to store connection string for the existing MySQL database and the target API endpoint URL.
+3.  Implement a service (e.g., MySqlQueryService) to connect to MySQL (using MySql.Data or similar) and execute the provided SQL queries  for MOD28 and MOD29.
+4.  Implement logic to parse the query results and calculate folios_disponibles accurately, handling folioactual being NULL.
+5.  Implement a service (e.g., ApiClientService) to format the collected data into the expected JSON payload  and POST it to the /api/folios/update endpoint of the Web API.
+6.  Implement the main BackgroundService class to orchestrate the daily execution (querying MySQL, posting to API).
+7.  Configure scheduling (e.g., using PeriodicTimer or a CRON library like NCrontab.Scheduler) for daily execution.
+8.  Implement robust error handling and logging for DB connection, query execution, and API calls.
+* # Test Strategy:
+1.  Unit test the folio calculation logic with various inputs (null/non-null folioactual, Activo status).
+2.  Unit test the API client service using a mock HTTP client.
+3.  Write integration tests connecting to a test MySQL database to verify query execution and data parsing.
+4.  Test the scheduling mechanism triggers correctly.
+5.  Verify error handling logs issues appropriately.   
+
+3. Implement API Layer (ASP.NET Core Web API)
+* Description: Set up the ASP.NET Core Web API project. Implement core API endpoints: POST /api/folios/update, GET /api/folios/summary, GET /api/folios/invoices, GET /api/folios/creditnotes. Define DTOs and basic validation.
+* Status: pending
+* Dependencies: [1]
+* Priority: high
+* # Details:
+1.  Create a new ASP.NET Core Web API project (FolioMonitor.API).
+2.  Implement controller FoliosController.
+3.  Implement POST /api/folios/update endpoint: Accepts the JSON payload from the Worker Service, validates the DTO, and passes data to a service/repository for persistence (links to Task 4). Apply authentication/authorization (basic API key or placeholder).
+4.  Implement GET /api/folios/summary endpoint: Retrieves the latest overall summary (total available per type) from the database/cache.
+5.  Implement GET /api/folios/invoices endpoint: Retrieves detailed series information for invoice folios (MOD28).
+6.  Implement GET /api/folios/creditnotes endpoint: Retrieves detailed series information for credit note folios (MOD29).
+7.  Define DTOs used for request bodies and response payloads, leveraging models from Task 1.
+8.  Implement dependency injection for services and repositories.
+9.  Set up global error handling middleware.
+* # Test Strategy:
+1.  Unit test controller actions using mock services/repositories.
+2.  Write integration tests for each endpoint, verifying input validation, service calls, and expected responses (success/error).
+3.  Test authentication/authorization on relevant endpoints.
+4.  Verify correct HTTP status codes and response formats.
+
+4. Implement Persistence Layer
+* Description: Implement the logic for storing the daily folio availability data received from the Worker Service into the monitoring system's database (historical tracking). Configure data access patterns (e.g., using Entity Framework Core).
+* Status: pending
+* Dependencies: [1, 2, 3]
+* Priority: high
+* # Details:
+1.  Inject the IFolioHistoryRepository (from Task 1) into the service layer used by the POST /api/folios/update endpoint.
+2.  Implement the service logic to map the received DTO data to FolioHistory entities.
+3.  Add logic to timestamp each record (FechaRegistro).
+4.  Call the repository method to save the FolioHistory records to the database within the /api/folios/update request handling.
+5.  Implement repository methods needed for the GET endpoints (Task 3) to retrieve the latest status or summaries.
+6.  Consider transaction management if multiple records are saved within one request.
+* # Test Strategy:
+1.  Unit test the service logic responsible for mapping DTOs and calling the repository.
+2.  Write integration tests for the POST /api/folios/update endpoint, verifying that the correct data is persisted in the FolioHistory table after the call.
+3.  Verify data retrieval logic for GET endpoints retrieves the correct historical/latest data.
+
+5. Implement Basic Logging (MVP)
+* Description: Implement a basic logging mechanism across the Web API and Worker Service to record key events, errors, and daily execution status.
+* Status: pending
+* Dependencies: [2, 3]
+* Priority: medium
+* # Details:
+1.  Configure Microsoft.Extensions.Logging in both FolioMonitor.API and FolioMonitor.Worker projects (Program.cs / Startup.cs).
+2.  Inject ILogger<T> into controllers, services, and background tasks where logging is needed.
+3.  Add informative log messages (Info level) for key operations: Worker start/stop, query execution start/end, number of records found, API request received, API response sent.
+4.  Add detailed log messages (Debug level) for troubleshooting specific steps.
+5.  Add error log messages (Error level) within exception handlers, including exception details.
+6.  Configure logging providers (e.g., Console, Debug, optionally File or Azure Application Insights).
+* # Test Strategy:
+1.  Run the Worker Service and API, then inspect console/debug output (or configured files/Azure Monitor) to verify logs are generated.
+2.  Simulate error conditions (e.g., DB connection failure, invalid API payload) and verify errors are logged correctly with sufficient detail.
+3.  Ensure sensitive data (like connection strings) is not logged.
+
+(Phase 2 Tasks)
+
+6. Implement Alert System Logic
+* Description: Develop the logic within the API or a separate service to evaluate folio availability against configurable thresholds and determine when alerts (warning, critical) should be triggered.
+* Status: pending
+* Dependencies: [4] # Depends on having persisted data to check
+* Priority: medium
+* # Details:
+1.  Add logic (likely within the service handling POST /api/folios/update or a separate scheduled check) to retrieve alert thresholds from the Configuration table (Task 1).
+2.  Compare the newly received foliosDisponibles for each series against the configured warning and critical thresholds.
+3.  Maintain state or check previous status to avoid sending repeated alerts for the same condition daily.
+4.  If a threshold is crossed, trigger an event or call the notification service (Task 7), passing alert details (series info, level).
+5.  Define data structure/model for alert information.
+* # Test Strategy:
+1.  Unit test the threshold comparison logic thoroughly with different availability numbers and threshold values.
+2.  Test the state management logic (avoiding duplicate alerts).
+3.  Write integration tests simulating POST /api/folios/update with data below thresholds and verify the notification service (mocked) is called correctly.
+
+7. Implement Email Notification System
+* Description: Create a service responsible for sending email notifications when the Alert System triggers an alert. Configure SMTP settings. Manage notification recipients (potentially configurable).
+* Status: pending
+* Dependencies: [6] # Depends on alert logic triggering it
+* Priority: medium
+* # Details:
+1.  Create a new service (e.g., EmailNotificationService).
+2.  Integrate an email library (e.g., MailKit).
+3.  Implement configuration (appsettings.json) for SMTP server details (host, port, credentials). Consider using Azure Key Vault for credentials.
+4.  Implement logic to retrieve recipient email addresses (initially hardcoded or from Configuration table).
+5.  Implement method(s) to accept alert details and format them into clear email subjects and bodies.
+6.  Implement email sending logic, including error handling for SMTP connection/send failures.
+7.  Inject and call this service from the Alert System logic (Task 6).
+* # Test Strategy:
+1.  Unit test email formatting logic.
+2.  Write integration tests using a mock SMTP server (like smtp4dev) or test email accounts to verify emails are sent correctly when alerts are triggered.
+3.  Test error handling for invalid SMTP configuration or send failures.
+
+8. Implement Extended API Reporting Endpoints
+* Description: Add more detailed reporting endpoints to the API as needed, potentially including filtering or date range queries for historical data.
+* Status: pending
+* Dependencies: [4] # Depends on historical data being available
+* Priority: low
+* # Details:
+1.  Define specific requirements for new reports (e.g., GET /api/folios/history?module=MOD28&startDate=...&endDate=...).
+2.  Implement new repository methods in IFolioHistoryRepository to support filtering/querying by date range, module, etc.
+3.  Implement new controller actions in FoliosController for the defined report endpoints.
+4.  Implement service layer logic to call repositories and format data into appropriate DTOs for the reports.
+5.  Consider adding pagination for potentially large historical datasets (skip, take parameters).
+* # Test Strategy:
+1.  Unit test new service and repository methods.
+2.  Write integration tests for the new API endpoints, verifying filtering, date range logic, and pagination work correctly.
+3.  Test performance of historical queries with significant amounts of data.
+
+9. Implement Data Retention Policies
+* Description: Define and implement automated policies for archiving or deleting old historical folio data from the monitoring database to manage storage growth.
+* Status: pending
+* Dependencies: [4]
+* Priority: low
+* # Details:
+1.  Define the retention period (e.g., 1 year, 6 months) - make it configurable in the Configuration table.
+2.  Implement logic to delete records from FolioHistory older than the configured retention period.
+3.  Choose implementation method:
+* a) Add logic to the existing Worker Service to run periodically (e.g., weekly/monthly).
+* b) Create a separate small Worker Service or Azure Function specifically for data cleanup.
+* c) Create a database stored procedure scheduled by the DB server (if applicable).
+4.  Ensure the deletion logic is efficient and handles potential errors gracefully.
+* # Test Strategy:
+1.  Populate the database with historical data spanning beyond the retention period.
+2.  Manually trigger or run the cleanup job/logic.
+3.  Verify that only records older than the retention period are deleted and recent data remains untouched.
+4.  Test edge cases (e.g., no old data to delete).
+
+10. Implement API Documentation (Swagger/OpenAPI)
+* Description: Integrate Swagger/OpenAPI documentation into the ASP.NET Core Web API project to provide interactive documentation for all endpoints.
+* Status: pending
+* Dependencies: [3, 8] # Depends on having API endpoints defined
+* Priority: medium
+* # Details:
+1.  Add the Swashbuckle.AspNetCore NuGet package to the FolioMonitor.API project.
+2.  Configure Swagger generation and UI in Program.cs / Startup.cs.
+3.  Add XML comments (<summary>, <param>, <returns>) to controller actions and DTOs to provide descriptions.
+4.  Configure the build process to generate the XML documentation file.
+5.  Annotate endpoints requiring authentication (e.g., using [Authorize] attributes and configuring Swagger security definitions).
+* # Test Strategy:
+1.  Run the API project and navigate to the Swagger UI endpoint (e.g., /swagger).
+2.  Verify all public API endpoints are listed.
+3.  Check that descriptions from XML comments appear correctly.
+4.  Verify request/response models (DTOs) are accurately represented.
+5.  Test the "Try it out" functionality for key endpoints.
+
+(Phase 3 Tasks)
+
+11. Develop Dashboard UI Frontend
+* Description: Create the frontend application (e.g., using React, Angular, Blazor) to consume the Web API and display the folio status dashboard, including visualizations.
+* Status: pending
+* Dependencies: [3, 10] # Depends on API being ready and documented
+* Priority: medium
+* # Details:
+1.  Set up the chosen frontend framework project (React specified earlier, stick to that unless PRD implies otherwise - PRD is stack agnostic here).
+2.  Implement API service layer (using Axios/Fetch) to call documented API endpoints (Task 10).
+3.  Implement authentication flow (Login page, token storage, authenticated requests).
+4.  Create components to display data from /summary, /invoices, /creditnotes.
+5.  Use a UI library (e.g., Material UI) for layout, tables, cards, status indicators (color-coded).
+6.  Integrate a charting library (e.g., Chart.js, Recharts) for visualizations if required by design (e.g., Task 12).
+7.  Implement basic responsiveness for desktop/mobile.
+8.  Implement routing for different views/pages.
+* # Test Strategy:
+1.  Unit/Component test individual UI components with mock data.
+2.  Write integration tests verifying components fetch and display data correctly from a mock API or test backend.
+3.  Perform E2E tests simulating user flows (login, view dashboard, view details).
+4.  Test responsiveness on different screen sizes/devices.
+5.  Cross-browser compatibility testing.
+
+12. Implement Trend Analysis & Forecasting
+* Description: Develop backend logic and potentially new API endpoints to analyze historical folio usage data and provide trend insights or simple forecasts for depletion.
+* Status: pending
+* Dependencies: [4, 8] # Requires historical data and potentially extended reporting APIs
+* Priority: low
+* # Details:
+1.  Define the specific analysis required (e.g., average daily/weekly consumption per series, estimated days until depletion based on recent trend).
+2.  Implement service layer logic in the backend to query FolioHistory data.
+3.  Perform calculations (e.g., grouping by day/week, calculating differences in folioactual, averaging consumption rates).
+4.  Implement new API endpoints (e.g., GET /api/folios/trends?seriesId=...) to expose analysis results.
+5.  (Optional) Integrate results into the frontend dashboard (Task 11).
+* # Test Strategy:
+1.  Unit test calculation logic with various historical data patterns (stable usage, increasing/decreasing usage, gaps in data).
+2.  Write integration tests for the new API endpoints, verifying the accuracy of calculated trends/forecasts against known test data.
+3.  Validate forecasting logic against manual projections.
+
+13. Integrate Additional Notification Channels
+* Description: Extend the notification system to support channels beyond email, such as SMS, Microsoft Teams, or Slack, based on requirements.
+* Status: pending
+* Dependencies: [7] # Extends existing notification system
+* Priority: low
+* # Details:
+1.  Identify required channels (SMS, Teams, Slack, etc.).
+2.  Research and select appropriate libraries or SDKs for each channel (e.g., Twilio for SMS, Microsoft Graph for Teams, Slack SDK).
+3.  Extend the Configuration system to store API keys/webhooks/credentials for new channels securely (use Key Vault).
+4.  Abstract the notification logic (e.g., using an INotificationService interface with multiple implementations).
+5.  Implement new notification service classes for each required channel.
+6.  Update the Alert System logic (Task 6) to potentially send notifications via multiple configured channels.
+* # Test Strategy:
+1.  Unit test new notification service implementations using mocks for external APIs.
+2.  Perform integration tests sending actual notifications to test accounts/channels for each supported provider.
+3.  Verify configuration allows enabling/disabling specific channels.
+
+14. Implement Report Export Functionality
+* Description: Add functionality to the API and/or UI to allow users to export folio status reports or historical data in formats like PDF or Excel.
+* Status: pending
+* Dependencies: [8, 11] # Depends on having data and potentially a UI trigger
+* Priority: low
+* # Details:
+1.  Choose export formats (PDF, Excel/CSV).
+2.  Select server-side libraries for generation (e.g., ClosedXML or EPPlus for Excel, QuestPDF or iTextSharp for PDF).
+3.  Implement new API endpoints (e.g., GET /api/folios/export?format=excel&reportType=summary) that:
+* Fetch the required data.
+* Generate the file content using the chosen library.
+* Return the file as a download (FileContentResult) with appropriate MIME type.
+4.  (Optional) Add buttons/links in the frontend UI (Task 11) to trigger these export endpoints.
+5.  Consider parameters for customizing exports (date ranges, specific series, etc.).
+* # Test Strategy:
+1.  Unit test file generation logic with sample data.
+2.  Write integration tests for the export API endpoints.
+3.  Download generated files and manually verify:
+* Correct format (can be opened by Excel/PDF reader).
+* Accurate data content.
+* Correct formatting/layout within the file.
+
+
+
+
+

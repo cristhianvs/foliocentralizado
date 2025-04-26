@@ -1,0 +1,6 @@
+@FolioMonitor.API_HostAddress = http://localhost:5152
+
+GET {{FolioMonitor.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

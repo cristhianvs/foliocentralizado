@@ -1,0 +1,560 @@
+[
+  {
+    "id": 1,
+    "title": "Setup Project Foundation Layer",
+    "description": "Design and implement the initial database schema for the monitoring system (SQL Server or MySQL), define core data models (FolioSeries, FolioSummary) and repositories, and set up basic authentication/security structure for the API.",
+    "status": "pending",
+    "dependencies": [],
+    "priority": "high",
+    "details": "Define database, models, repositories, auth placeholders.",
+    "testStrategy": "Schema validation, unit tests for repos, basic auth checks.",
+    "subtasks": [
+      {
+        "id": 1,
+        "title": "Finalize DB Choice (SQL Server/MySQL) for Monitoring System",
+        "description": "Decide and document the database platform for the monitoring system's own data.",
+        "status": "pending",
+        "dependencies": [],
+        "details": "Evaluate requirements, existing infrastructure, team familiarity.",
+        "testStrategy": "N/A (Decision Task)"
+      },
+      {
+        "id": 2,
+        "title": "Define SQL Schema (History & Config Tables)",
+        "description": "Create SQL definitions for FolioHistory and Configuration tables.",
+        "status": "pending",
+        "dependencies": [1.1],
+        "details": "Columns for FolioHistory: Id, FolioInicio, FolioFin, Modulo, FolioActual, FoliosDisponibles, Activo, FechaRegistro, Timestamp. Columns for Configuration: Key, Value, Description.",
+        "testStrategy": "Schema review for correctness and completeness."
+      },
+      {
+        "id": 3,
+        "title": "Define C# Entity Models (EF Core)",
+        "description": "Create C# classes corresponding to the History and Config tables using EF Core conventions/attributes.",
+        "status": "pending",
+        "dependencies": [1.2],
+        "details": "Ensure correct data types, relationships, and constraints are mapped.",
+        "testStrategy": "Code review, ensure models match schema."
+      },
+      {
+        "id": 4,
+        "title": "Define Core DTO Models (API Communication)",
+        "description": "Define C# classes/records for FolioSeries and FolioSummary as specified in PRD.",
+        "status": "pending",
+        "dependencies": [],
+        "details": "Used for request/response payloads in the API.",
+        "testStrategy": "Code review, ensure DTOs match PRD specification."
+      },
+      {
+        "id": 5,
+        "title": "Implement Repository Pattern",
+        "description": "Implement interfaces (IFolioHistoryRepository, IConfigurationRepository) and concrete classes using EF Core.",
+        "status": "pending",
+        "dependencies": [1.3],
+        "details": "Include methods for saving history, getting/setting configuration.",
+        "testStrategy": "Unit test repository methods (mocking DbContext or using in-memory provider)."
+      },
+      {
+        "id": 6,
+        "title": "Configure EF Core DbContext",
+        "description": "Set up the DbContext class, configure entity mappings, and manage connection strings.",
+        "status": "pending",
+        "dependencies": [1.3, 1.5],
+        "details": "Handle connection string via appsettings.json / environment variables.",
+        "testStrategy": "Test database connectivity from API/Worker project."
+      },
+      {
+        "id": 7,
+        "title": "Setup Basic API Authentication",
+        "description": "Implement basic API Key middleware or JWT placeholder in ASP.NET Core API.",
+        "status": "pending",
+        "dependencies": [],
+        "details": "Focus on structure, actual implementation can be refined later.",
+        "testStrategy": "Test middleware blocks unauthorized requests, allows authorized ones."
+      }
+    ]
+  },
+  {
+    "id": 2,
+    "title": "Implement Data Collection Layer (Worker Service)",
+    "description": "Create the .NET Worker Service project. Implement logic to query the existing store MySQL database daily using provided SQL queries to calculate available folios for MOD28 and MOD29. Implement scheduled execution mechanism.",
+    "status": "pending",
+    "dependencies": [1],
+    "priority": "high",
+    "details": "Create Worker Service, implement MySQL query, API posting, scheduling.",
+    "testStrategy": "Unit tests for logic, integration test with MySQL, schedule verification.",
+    "subtasks": [
+      {
+        "id": 1,
+        "title": "Create .NET Worker Service Project",
+        "description": "Setup the basic FolioMonitor.Worker project structure.",
+        "status": "pending",
+        "dependencies": [],
+        "details": "Use .NET CLI or Visual Studio template.",
+        "testStrategy": "Verify project builds successfully."
+      },
+      {
+        "id": 2,
+        "title": "Implement MySQL Query Service",
+        "description": "Create service to connect to existing MySQL DB and execute folio queries.",
+        "status": "pending",
+        "dependencies": [2.1],
+        "details": "Use MySql.Data connector. Handle connection string from config. Implement error handling.",
+        "testStrategy": "Integration test against a test MySQL database."
+      },
+      {
+        "id": 3,
+        "title": "Implement Folio Calculation Logic",
+        "description": "Parse query results and calculate 'folios_disponibles' correctly.",
+        "status": "pending",
+        "dependencies": [2.2],
+        "details": "Handle cases where folioactual is NULL.",
+        "testStrategy": "Unit test calculation logic with various scenarios."
+      },
+      {
+        "id": 4,
+        "title": "Implement API Client Service",
+        "description": "Create service to format data and POST to /api/folios/update endpoint.",
+        "status": "pending",
+        "dependencies": [1.4, 2.1],
+        "details": "Use HttpClient or RestSharp. Handle API endpoint URL from config. Handle API errors.",
+        "testStrategy": "Unit test with mock HTTP client. Integration test against running API (Task 3)."
+      },
+      {
+        "id": 5,
+        "title": "Implement Main BackgroundService",
+        "description": "Orchestrate the daily workflow: query MySQL -> calculate -> post to API.",
+        "status": "pending",
+        "dependencies": [2.2, 2.3, 2.4],
+        "details": "Implement ExecuteAsync method in the BackgroundService.",
+        "testStrategy": "Integration test the entire worker flow."
+      },
+      {
+        "id": 6,
+        "title": "Configure Scheduling Mechanism",
+        "description": "Set up the Worker Service to run daily.",
+        "status": "pending",
+        "dependencies": [2.5],
+        "details": "Use PeriodicTimer or NCrontab.Scheduler. Make schedule configurable.",
+        "testStrategy": "Verify the worker runs at the configured interval."
+      },
+      {
+        "id": 7,
+        "title": "Implement Worker Error Handling & Logging",
+        "description": "Add robust error handling and logging throughout the worker process.",
+        "status": "pending",
+        "dependencies": [2.5],
+        "details": "Log key steps, errors during DB query, API calls.",
+        "testStrategy": "Verify logs during normal operation and simulated errors."
+      }
+    ]
+  },
+  {
+    "id": 3,
+    "title": "Implement API Layer (ASP.NET Core Web API)",
+    "description": "Set up the ASP.NET Core Web API project. Implement core API endpoints: POST /api/folios/update, GET /api/folios/summary, GET /api/folios/invoices, GET /api/folios/creditnotes. Define DTOs and basic validation.",
+    "status": "pending",
+    "dependencies": [1],
+    "priority": "high",
+    "details": "Create API project, implement controllers, DTOs, basic validation.",
+    "testStrategy": "Unit/Integration tests for endpoints, validation checks.",
+    "subtasks": [
+       {
+        "id": 1,
+        "title": "Create ASP.NET Core Web API Project",
+        "description": "Setup the basic FolioMonitor.API project structure.",
+        "status": "pending",
+        "dependencies": [],
+        "details": "Use .NET CLI or Visual Studio template.",
+        "testStrategy": "Verify project builds and runs."
+      },
+      {
+        "id": 2,
+        "title": "Implement FoliosController Structure",
+        "description": "Create the main controller for folio-related endpoints.",
+        "status": "pending",
+        "dependencies": [3.1],
+        "details": "Inject necessary services (to be created).",
+        "testStrategy": "Code review for structure."
+      },
+      {
+        "id": 3,
+        "title": "Implement POST /api/folios/update Endpoint",
+        "description": "Accept data from Worker, validate, pass to service/repo.",
+        "status": "pending",
+        "dependencies": [1.7, 3.2, 4],
+        "details": "Apply authentication. Validate input DTO.",
+        "testStrategy": "Integration test receiving data from worker, verify validation and call to persistence."
+      },
+      {
+        "id": 4,
+        "title": "Implement GET /api/folios/summary Endpoint",
+        "description": "Retrieve and return latest overall summary.",
+        "status": "pending",
+        "dependencies": [3.2, 4],
+        "details": "Call service/repo to get latest data.",
+        "testStrategy": "Integration test verifying correct summary data is returned."
+      },
+       {
+        "id": 5,
+        "title": "Implement GET /api/folios/invoices Endpoint",
+        "description": "Retrieve and return detailed series info for invoices.",
+        "status": "pending",
+        "dependencies": [3.2, 4],
+        "details": "Filter data for MOD28.",
+        "testStrategy": "Integration test verifying correct invoice data is returned."
+      },
+       {
+        "id": 6,
+        "title": "Implement GET /api/folios/creditnotes Endpoint",
+        "description": "Retrieve and return detailed series info for credit notes.",
+        "status": "pending",
+        "dependencies": [3.2, 4],
+        "details": "Filter data for MOD29.",
+        "testStrategy": "Integration test verifying correct credit note data is returned."
+      },
+       {
+        "id": 7,
+        "title": "Implement DTOs and Validation",
+        "description": "Define Data Transfer Objects for API requests/responses and add validation.",
+        "status": "pending",
+        "dependencies": [1.4],
+        "details": "Use FluentValidation or Data Annotations.",
+        "testStrategy": "Unit tests for validation rules."
+      },
+       {
+        "id": 8,
+        "title": "Setup Dependency Injection & Error Handling",
+        "description": "Configure DI for services/repos. Implement global error handling middleware.",
+        "status": "pending",
+        "dependencies": [3.1],
+        "details": "Register services in Program.cs/Startup.cs. Create middleware for consistent error responses.",
+        "testStrategy": "Verify DI works. Test error responses for different exception types."
+      }
+    ]
+  },
+  {
+    "id": 4,
+    "title": "Implement Persistence Layer",
+    "description": "Implement the logic for storing the daily folio availability data received from the Worker Service into the monitoring system's database (historical tracking). Configure data access patterns (e.g., using Entity Framework Core).",
+    "status": "pending",
+    "dependencies": [1, 2, 3],
+    "priority": "high",
+    "details": "Save data from POST /update, implement retrieval for GET endpoints.",
+    "testStrategy": "Verify data saving/retrieval via integration tests.",
+    "subtasks": [
+         {
+          "id": 1,
+          "title": "Implement SaveFolioHistory Method",
+          "description": "Implement logic in service/repo called by POST /update to save FolioHistory records.",
+          "status": "pending",
+          "dependencies": [],
+          "details": "Use EF Core to save records. Handle batch inserts efficiently.",
+          "testStrategy": "Integration test saving records and verifying they are stored correctly."
+        },
+        {
+          "id": 2,
+          "title": "Implement GetLatestFolioHistory Method",
+          "description": "Implement logic to retrieve the most recent folio history records.",
+          "status": "pending",
+          "dependencies": [],
+          "details": "Order by timestamp descending, limit to latest records.",
+          "testStrategy": "Integration test retrieving latest records."
+        },
+        {
+          "id": 3,
+          "title": "Implement GetFolioHistoryByModule Method",
+          "description": "Implement logic to retrieve folio history records filtered by module.",
+          "status": "pending",
+          "dependencies": [],
+          "details": "Filter by module (MOD28/MOD29), order by timestamp.",
+          "testStrategy": "Integration test retrieving module-specific records."
+        },
+        {
+          "id": 4,
+          "title": "Add Repository Documentation",
+          "description": "Add XML documentation to repository interface and implementation.",
+          "status": "pending",
+          "dependencies": [],
+          "details": "Document methods, parameters, and return types.",
+          "testStrategy": "Code review for documentation completeness."
+        }
+    ]
+  },
+  {
+    "id": 5,
+    "title": "Implement Basic Logging (MVP)",
+    "description": "Implement a basic logging mechanism across the Web API and Worker Service to record key events, errors, and daily execution status.",
+    "status": "pending",
+    "dependencies": [2, 3],
+    "priority": "medium",
+    "details": "Configure ILogger, inject, add log statements.",
+    "testStrategy": "Verify logs during normal operation and errors.",
+     "subtasks": [
+        {
+          "id": 1,
+          "title": "Configure Logging Providers",
+          "description": "Setup logging (Console, Debug, etc.) in Program.cs for both API and Worker.",
+          "status": "pending",
+          "dependencies": [2.1, 3.1],
+          "details": "Use builder.Logging.AddConsole() etc.",
+          "testStrategy": "Verify logs appear in configured output."
+        },
+        {
+          "id": 2,
+          "title": "Inject ILogger<T>",
+          "description": "Inject logger into relevant classes (controllers, services, background tasks).",
+          "status": "pending",
+          "dependencies": [5.1],
+          "details": "Use constructor injection.",
+          "testStrategy": "Verify injection works."
+        },
+         {
+          "id": 3,
+          "title": "Add Log Statements (Info, Error, Debug)",
+          "description": "Add logging calls at key points in the code.",
+          "status": "pending",
+          "dependencies": [5.2],
+          "details": "Log API requests, worker actions, errors with context.",
+          "testStrategy": "Manually inspect logs during testing (Tasks 2, 3, 4)."
+        }
+    ]
+  },
+  {
+    "id": 6,
+    "title": "Implement Alert System Logic",
+    "description": "Develop the logic within the API or a separate service to evaluate folio availability against configurable thresholds and determine when alerts (warning, critical) should be triggered.",
+    "status": "pending",
+    "dependencies": [4],
+    "priority": "medium",
+    "details": "Compare available folios to config thresholds, trigger notifications.",
+    "testStrategy": "Unit tests for threshold logic, integration test triggering notifications.",
+     "subtasks": [
+        {
+          "id": 1,
+          "title": "Implement Threshold Retrieval",
+          "description": "Create logic/service to read alert thresholds from Configuration table.",
+          "status": "pending",
+          "dependencies": [1.5],
+          "details": "Read 'WarningThreshold', 'CriticalThreshold' keys.",
+          "testStrategy": "Unit test retrieval logic."
+        },
+        {
+          "id": 2,
+          "title": "Implement Threshold Check Logic",
+          "description": "Compare FolioHistory data against retrieved thresholds.",
+          "status": "pending",
+          "dependencies": [6.1],
+          "details": "Trigger when folios_disponibles drops below threshold.",
+          "testStrategy": "Unit test comparison logic."
+        },
+         {
+          "id": 3,
+          "title": "Implement Alert State Management",
+          "description": "Add logic to prevent sending duplicate alerts daily.",
+          "status": "pending",
+          "dependencies": [6.2],
+          "details": "Store last alert status/timestamp, check before sending.",
+          "testStrategy": "Test scenarios where alerts should/should not be resent."
+        },
+        {
+          "id": 4,
+          "title": "Integrate with Notification Service",
+          "description": "Call the notification service (Task 7) when an alert condition is met.",
+          "status": "pending",
+          "dependencies": [6.2, 7],
+          "details": "Pass alert details (level, series info) to notification service.",
+          "testStrategy": "Integration test using a mock notification service."
+        }
+    ]
+  },
+  {
+    "id": 7,
+    "title": "Implement Email Notification System",
+    "description": "Create a service responsible for sending email notifications when the Alert System triggers an alert. Configure SMTP settings. Manage notification recipients (potentially configurable).",
+    "status": "pending",
+    "dependencies": [6],
+    "priority": "medium",
+    "details": "Use MailKit, configure SMTP, format/send emails.",
+    "testStrategy": "Unit test formatting, integration test with mock SMTP.",
+     "subtasks": [
+         {
+          "id": 1,
+          "title": "Create Email Notification Service",
+          "description": "Implement service structure (IEmailNotificationService + implementation).",
+          "status": "pending",
+          "dependencies": [],
+          "details": "Inject IConfiguration for settings.",
+          "testStrategy": "Verify structure and DI setup."
+        },
+         {
+          "id": 2,
+          "title": "Integrate MailKit Library",
+          "description": "Add MailKit NuGet package and implement core email sending logic.",
+          "status": "pending",
+          "dependencies": [7.1],
+          "details": "Connect to SMTP, authenticate, send MimeMessage.",
+          "testStrategy": "Unit test core sending logic (mock SmtpClient)."
+        },
+         {
+          "id": 3,
+          "title": "Implement Configuration Handling",
+          "description": "Read SMTP settings and recipient list from config.",
+          "status": "pending",
+          "dependencies": [7.1],
+          "details": "Use IConfiguration. Get recipients from config table or appsettings.",
+          "testStrategy": "Verify settings are read correctly."
+        },
+        {
+          "id": 4,
+          "title": "Implement Email Formatting",
+          "description": "Create methods to format alert details into email subject/body.",
+          "status": "pending",
+          "dependencies": [7.1],
+          "details": "Use clear and informative templates.",
+          "testStrategy": "Unit test formatting with sample alert data."
+        },
+         {
+          "id": 5,
+          "title": "Implement Error Handling",
+          "description": "Add error handling for SMTP connection/send failures.",
+          "status": "pending",
+          "dependencies": [7.2],
+          "details": "Log errors appropriately.",
+          "testStrategy": "Test behaviour when SMTP server is unavailable."
+        }
+    ]
+  },
+  {
+    "id": 8,
+    "title": "Implement Extended API Reporting Endpoints",
+    "description": "Add more detailed reporting endpoints to the API as needed, potentially including filtering or date range queries for historical data.",
+    "status": "pending",
+    "dependencies": [4],
+    "priority": "low",
+    "details": "Define new reports, implement repo methods, controllers, services.",
+    "testStrategy": "Test new endpoints for filtering, pagination, performance.",
+    "subtasks": []
+  },
+  {
+    "id": 9,
+    "title": "Implement Data Retention Policies",
+    "description": "Define and implement automated policies for archiving or deleting old historical folio data from the monitoring database to manage storage growth.",
+    "status": "pending",
+    "dependencies": [4],
+    "priority": "low",
+    "details": "Define period, implement deletion logic (Worker, Job, Proc).",
+    "testStrategy": "Verify old data is deleted correctly.",
+    "subtasks": []
+  },
+  {
+    "id": 10,
+    "title": "Implement API Documentation (Swagger/OpenAPI)",
+    "description": "Integrate Swagger/OpenAPI documentation into the ASP.NET Core Web API project to provide interactive documentation for all endpoints.",
+    "status": "pending",
+    "dependencies": [3, 8],
+    "priority": "medium",
+    "details": "Add Swashbuckle, configure, add XML comments.",
+    "testStrategy": "Verify Swagger UI generation and accuracy.",
+    "subtasks": [
+        {
+          "id": 1,
+          "title": "Add Swashbuckle NuGet Package",
+          "description": "Install required package.",
+          "status": "pending",
+          "dependencies": [3.1],
+          "details": "",
+          "testStrategy": "Verify package is added."
+        },
+        {
+          "id": 2,
+          "title": "Configure Swagger Services",
+          "description": "Add Swagger generation services in Program.cs/Startup.cs.",
+          "status": "pending",
+          "dependencies": [10.1],
+          "details": "Use AddSwaggerGen().",
+          "testStrategy": "Verify configuration compiles."
+        },
+        {
+          "id": 3,
+          "title": "Configure Swagger UI Middleware",
+          "description": "Add middleware to serve the Swagger UI.",
+          "status": "pending",
+          "dependencies": [10.2],
+          "details": "Use UseSwagger() and UseSwaggerUI().",
+          "testStrategy": "Verify UI endpoint (e.g., /swagger) loads."
+        },
+        {
+          "id": 4,
+          "title": "Enable XML Documentation Output",
+          "description": "Configure API project build to generate XML doc file.",
+          "status": "pending",
+          "dependencies": [3.1],
+          "details": "Edit .csproj file.",
+          "testStrategy": "Verify XML file is generated on build."
+        },
+        {
+          "id": 5,
+          "title": "Add XML Comments",
+          "description": "Add <summary>, <param>, <returns> to controllers and DTOs.",
+          "status": "pending",
+          "dependencies": [3, 10.4],
+          "details": "Document all public endpoints and models.",
+          "testStrategy": "Review Swagger UI to ensure comments appear correctly."
+        },
+         {
+          "id": 6,
+          "title": "Configure Security Definitions (Optional)",
+          "description": "Add security definitions for API Key/JWT if applicable.",
+          "status": "pending",
+          "dependencies": [1.7, 10.2],
+          "details": "Use AddSecurityDefinition and AddSecurityRequirement.",
+          "testStrategy": "Verify padlock icon and auth input appear in Swagger UI."
+        }
+    ]
+  },
+  {
+    "id": 11,
+    "title": "Develop Dashboard UI Frontend",
+    "description": "Create the frontend application (e.g., using React, Angular, Blazor) to consume the Web API and display the folio status dashboard, including visualizations.",
+    "status": "pending",
+    "dependencies": [3, 10],
+    "priority": "medium",
+    "details": "Setup project, implement API calls, components, routing, responsive design.",
+    "testStrategy": "Component tests, integration tests (mock API), E2E tests, responsive checks.",
+    "subtasks": []
+  },
+  {
+    "id": 12,
+    "title": "Implement Trend Analysis & Forecasting",
+    "description": "Develop backend logic and potentially new API endpoints to analyze historical folio usage data and provide trend insights or simple forecasts for depletion.",
+    "status": "pending",
+    "dependencies": [4, 8],
+    "priority": "low",
+    "details": "Define analysis, implement service logic, create API endpoints.",
+    "testStrategy": "Unit test calculations, integration test endpoints.",
+    "subtasks": []
+  },
+  {
+    "id": 13,
+    "title": "Integrate Additional Notification Channels",
+    "description": "Extend the notification system to support channels beyond email, such as SMS, Microsoft Teams, or Slack, based on requirements.",
+    "status": "pending",
+    "dependencies": [7],
+    "priority": "low",
+    "details": "Select channels, integrate SDKs, abstract service, configure.",
+    "testStrategy": "Unit tests (mocks), integration tests to test channels.",
+    "subtasks": []
+  },
+  {
+    "id": 14,
+    "title": "Implement Report Export Functionality",
+    "description": "Add functionality to the API and/or UI to allow users to export folio status reports or historical data in formats like PDF or Excel.",
+    "status": "pending",
+    "dependencies": [8, 11],
+    "priority": "low",
+    "details": "Choose formats/libraries, implement API endpoints, add UI triggers.",
+    "testStrategy": "Unit test generation, integration test endpoints, verify file output.",
+    "subtasks": []
+  }
+]
