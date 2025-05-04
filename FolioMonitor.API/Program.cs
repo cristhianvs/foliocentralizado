@@ -57,9 +57,11 @@ builder.Services.AddSwaggerGen(options =>
 // Register Repositories
 builder.Services.AddScoped<IFolioHistoryRepository, FolioHistoryRepository>();
 builder.Services.AddScoped<IConfigurationRepository, ConfigurationRepository>();
+builder.Services.AddScoped<LatestFolioSnapshotRepository>();
 
 // Register Services
 builder.Services.AddScoped<IAlertService, AlertService>();
+builder.Services.AddScoped<INotificationService, EmailNotificationService>();
 
 // Add DbContext configuration ONLY if not running in the "Testing" environment
 if (!builder.Environment.IsEnvironment("Testing"))

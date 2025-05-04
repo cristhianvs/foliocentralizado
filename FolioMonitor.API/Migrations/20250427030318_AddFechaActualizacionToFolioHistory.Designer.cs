@@ -4,6 +4,7 @@ using FolioMonitor.API.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace FolioMonitor.API.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250427030318_AddFechaActualizacionToFolioHistory")]
+    partial class AddFechaActualizacionToFolioHistory
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -87,45 +90,6 @@ namespace FolioMonitor.API.Migrations
                     b.HasIndex("Modulo", "Timestamp");
 
                     b.ToTable("FolioHistories");
-                });
-
-            modelBuilder.Entity("FolioMonitor.Core.Models.LatestFolioSnapshot", b =>
-                {
-                    b.Property<string>("CodigoSucursal")
-                        .HasMaxLength(50)
-                        .HasColumnType("varchar(50)");
-
-                    b.Property<string>("Modulo")
-                        .HasMaxLength(10)
-                        .HasColumnType("varchar(10)");
-
-                    b.Property<int>("FolioInicio")
-                        .HasColumnType("int");
-
-                    b.Property<int>("FolioFin")
-                        .HasColumnType("int");
-
-                    b.Property<bool>("Activo")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<DateTime?>("FechaActualizacion")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<DateTime>("FechaRegistro")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<int?>("FolioActual")
-                        .HasColumnType("int");
-
-                    b.Property<int>("FoliosDisponibles")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("Timestamp")
-                        .HasColumnType("datetime(6)");
-
-                    b.HasKey("CodigoSucursal", "Modulo", "FolioInicio", "FolioFin");
-
-                    b.ToTable("LatestFolioSnapshots");
                 });
 #pragma warning restore 612, 618
         }

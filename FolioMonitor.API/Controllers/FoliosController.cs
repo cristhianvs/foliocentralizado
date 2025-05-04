@@ -8,6 +8,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using FolioMonitor.API.Repositories;
+using MimeKit;
+using FolioMonitor.API.Services;
 
 namespace FolioMonitor.API.Controllers;
 
@@ -22,17 +25,20 @@ public class FoliosController : ControllerBase
     private readonly IAlertService _alertService;
     private readonly ILogger<FoliosController> _logger;
     private readonly IConfiguration _configuration;
+    private readonly LatestFolioSnapshotRepository _latestSnapshotRepo;
 
     public FoliosController(
         IFolioHistoryRepository folioHistoryRepo, 
         IAlertService alertService,
         ILogger<FoliosController> logger,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        LatestFolioSnapshotRepository latestSnapshotRepo)
     {
         _folioHistoryRepo = folioHistoryRepo;
         _alertService = alertService;
         _logger = logger;
         _configuration = configuration;
+        _latestSnapshotRepo = latestSnapshotRepo;
     }
 
     // POST /api/folios/update
@@ -82,6 +88,22 @@ public class FoliosController : ControllerBase
             // Persist using the repository (Task 4)
             await _folioHistoryRepo.AddRangeAsync(historyEntries);
 
+            // Upsert into LatestFolioSnapshot
+            var latestSnapshots = historyEntries.Select(h => new LatestFolioSnapshot
+            {
+                FolioInicio = h.FolioInicio,
+                FolioFin = h.FolioFin,
+                Modulo = h.Modulo,
+                FolioActual = h.FolioActual,
+                FoliosDisponibles = h.FoliosDisponibles,
+                Activo = h.Activo,
+                CodigoSucursal = h.CodigoSucursal,
+                FechaRegistro = h.FechaRegistro,
+                FechaActualizacion = h.FechaActualizacion,
+                Timestamp = h.Timestamp
+            }).ToList();
+            await _latestSnapshotRepo.UpsertRangeAsync(latestSnapshots);
+
             _logger.LogInformation("Successfully processed and stored {Count} folio history records.", historyEntries.Count);
             
             // Task 6 - Trigger Alert System Logic here after saving data
@@ -113,13 +135,16 @@ public class FoliosController : ControllerBase
         {
             var latestData = await _folioHistoryRepo.GetLatestAsync();
             
-            var summary = latestData
+            // Filter for active records only before grouping and summing
+            var activeData = latestData.Where(h => h.Activo);
+
+            var summary = activeData // Use filtered data here
                 .GroupBy(h => h.Modulo)
                 .Select(g => new FolioSummaryDto
                 {
                     DocumentType = MapModuloToDocumentType(g.Key),
                     TotalAvailableFolios = g.Sum(h => h.FoliosDisponibles),
-                    Series = g.Select(MapToSeriesDto).ToList()
+                    Series = g.Select(MapToSeriesDto).ToList() // Map only the active series in the group
                 }).ToList();
 
             return Ok(summary);
@@ -264,6 +289,40 @@ public class FoliosController : ControllerBase
         }
     }
 
+    // GET /api/folios/latest-snapshot
+    [HttpGet("latest-snapshot")]
+    public async Task<ActionResult<List<FolioSummaryDto>>> GetLatestSnapshot()
+    {
+        var latest = await _latestSnapshotRepo.GetAllAsync();
+        
+        // Filter for active snapshots only before grouping and summing
+        var activeSnapshots = latest.Where(s => s.Activo);
+
+        var summary = activeSnapshots // Use filtered list here
+            .GroupBy(h => h.Modulo)
+            .Select(g => new FolioSummaryDto
+            {
+                DocumentType = MapModuloToDocumentType(g.Key),
+                // Sum only from the (already filtered) active snapshots in the group
+                TotalAvailableFolios = g.Sum(h => h.FoliosDisponibles), 
+                Series = g.Select(s => new FolioSeriesDto // Map the active snapshots in the group
+                {
+                    // We don't need the history ID here as it's from snapshot
+                    FolioInicio = s.FolioInicio,
+                    FolioFin = s.FolioFin,
+                    Modulo = s.Modulo,
+                    FolioActual = s.FolioActual,
+                    FoliosDisponibles = s.FoliosDisponibles,
+                    Activo = s.Activo, // Will always be true here
+                    CodigoSucursal = s.CodigoSucursal,
+                    FechaRegistro = s.FechaRegistro,
+                    FechaActualizacion = s.FechaActualizacion,
+                    Timestamp = s.Timestamp
+                }).ToList()
+            }).ToList();
+        return Ok(summary);
+    }
+
     // --- Helper Methods ---
 
     private async Task<ActionResult<IEnumerable<FolioSeriesDto>>> GetFoliosByModule(string module)
@@ -294,6 +353,7 @@ public class FoliosController : ControllerBase
             Activo = dto.Activo, 
             CodigoSucursal = dto.CodigoSucursal, // Map Store Code
             FechaRegistro = dto.FechaRegistro, // From source
+            FechaActualizacion = dto.FechaActualizacion, // Map source update time
             Timestamp = timestamp // Timestamp of this monitoring record
         };
     }
@@ -311,6 +371,7 @@ public class FoliosController : ControllerBase
             Activo = history.Activo,
             FoliosDisponibles = history.FoliosDisponibles,
             FechaRegistro = history.FechaRegistro,
+            FechaActualizacion = history.FechaActualizacion, // Map source update time
             Timestamp = history.Timestamp // Map the Timestamp
         };
     }

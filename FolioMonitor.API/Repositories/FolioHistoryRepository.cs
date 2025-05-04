@@ -65,7 +65,7 @@ public class FolioHistoryRepository : IFolioHistoryRepository
            });
 
         var latestEntries = await _context.FolioHistories
-           .Where(fh => fh.Modulo == module) 
+           .Where(fh => fh.Modulo == module)
            .Join(
                latestTimestampsQuery, 
                history => new { history.CodigoSucursal, history.Modulo, history.FolioInicio, history.FolioFin, history.Timestamp }, 

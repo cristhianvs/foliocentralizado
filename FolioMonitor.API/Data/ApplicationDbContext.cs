@@ -12,6 +12,7 @@ public class ApplicationDbContext : DbContext
 
     public DbSet<FolioHistory> FolioHistories { get; set; }
     public DbSet<Configuration> Configurations { get; set; }
+    public DbSet<LatestFolioSnapshot> LatestFolioSnapshots { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -26,5 +27,9 @@ public class ApplicationDbContext : DbContext
             .HasIndex(fh => fh.Timestamp);
         modelBuilder.Entity<FolioHistory>()
             .HasIndex(fh => new { fh.Modulo, fh.Timestamp });
+
+        // Configure LatestFolioSnapshot composite key
+        modelBuilder.Entity<LatestFolioSnapshot>()
+            .HasKey(s => new { s.CodigoSucursal, s.Modulo, s.FolioInicio, s.FolioFin });
     }
 } 
