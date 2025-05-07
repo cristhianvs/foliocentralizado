@@ -1,0 +1,134 @@
+@page "/folio-management"
+@using System.ComponentModel.DataAnnotations
+
+<h2>Folio Assignment & Thresholds</h2>
+
+<div class="mb-3">
+    <label><b>Document Type</b></label>
+    <select @bind="selectedDocType" class="form-control w-auto d-inline-block ml-2">
+        <option value="Invoice">Invoice</option>
+        <option value="CreditNote">Credit Notes</option>
+    </select>
+</div>
+
+<div class="row">
+    <!-- Left: Folios DGI -->
+    <div class="col-md-6 mb-4">
+        <div class="p-3 border bg-light">
+            <h4>Folios DGI - @GetDocTypeLabel()</h4>
+            <form class="form-inline mb-3" @onsubmit="AddAssignment">
+                <label class="mr-2">New assignment</label>
+                <input type="number" class="form-control mr-2" placeholder="Lower range" @bind="newLower" required />
+                <input type="number" class="form-control mr-2" placeholder="Upper range" @bind="newUpper" required />
+                <button type="submit" class="btn btn-primary">Assign</button>
+            </form>
+            <h5>Historical assignments</h5>
+            <table class="table table-sm table-bordered">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Lower range</th>
+                        <th>Upper range</th>
+                        <th>Spent range?</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var a in Assignments.Where(x => x.DocType == selectedDocType))
+                    {
+                        <tr>
+                            <td>@a.Date.ToShortDateString()</td>
+                            <td>@a.Lower</td>
+                            <td>@a.Upper</td>
+                            <td><input type="checkbox" checked="@IsSpent(a)" disabled /></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <!-- Right: Folios Threshold -->
+    <div class="col-md-6 mb-4">
+        <div class="p-3 border bg-light">
+            <h4>Folios Threshold - @GetDocTypeLabel()</h4>
+            <table class="table table-sm table-bordered">
+                <thead>
+                    <tr>
+                        <th>Store ID</th>
+                        <th>Min</th>
+                        <th>Max</th>
+                        <th>Active?</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var t in Thresholds.Where(x => x.DocType == selectedDocType))
+                    {
+                        <tr>
+                            <td>@t.StoreId</td>
+                            <td><input type="number" class="form-control" @bind="t.Min" /></td>
+                            <td><input type="number" class="form-control" @bind="t.Max" /></td>
+                            <td><input type="checkbox" @bind="t.Active" /></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string selectedDocType = "Invoice";
+    private int newLower, newUpper;
+
+    public class FolioAssignment
+    {
+        public string DocType { get; set; } = "Invoice";
+        public DateTime Date { get; set; }
+        public int Lower { get; set; }
+        public int Upper { get; set; }
+    }
+    public class FolioThreshold
+    {
+        public string DocType { get; set; } = "Invoice";
+        public string StoreId { get; set; } = string.Empty;
+        public int Min { get; set; }
+        public int Max { get; set; }
+        public bool Active { get; set; }
+    }
+
+    private List<FolioAssignment> Assignments = new()
+    {
+        new FolioAssignment { DocType = "Invoice", Date = new DateTime(2025, 4, 1), Lower = 0, Upper = 20000 },
+        new FolioAssignment { DocType = "Invoice", Date = new DateTime(2025, 4, 15), Lower = 20001, Upper = 70000 },
+        new FolioAssignment { DocType = "CreditNote", Date = new DateTime(2025, 4, 1), Lower = 0, Upper = 10000 }
+    };
+    private List<FolioThreshold> Thresholds = new()
+    {
+        new FolioThreshold { DocType = "Invoice", StoreId = "229", Min = 100, Max = 500, Active = true },
+        new FolioThreshold { DocType = "Invoice", StoreId = "315", Min = 300, Max = 1000, Active = true },
+        new FolioThreshold { DocType = "Invoice", StoreId = "919", Min = 100, Max = 300, Active = false },
+        new FolioThreshold { DocType = "CreditNote", StoreId = "229", Min = 50, Max = 200, Active = true },
+        new FolioThreshold { DocType = "CreditNote", StoreId = "315", Min = 100, Max = 400, Active = true }
+    };
+
+    private void AddAssignment()
+    {
+        Assignments.Add(new FolioAssignment
+        {
+            DocType = selectedDocType,
+            Date = DateTime.Now,
+            Lower = newLower,
+            Upper = newUpper
+        });
+        newLower = newUpper = 0;
+    }
+
+    private string GetDocTypeLabel() => selectedDocType == "Invoice" ? "Invoice" : "Credit Notes";
+
+    // Placeholder: always returns false. Replace with DB check for FolioActual in production.
+    private bool IsSpent(FolioAssignment a)
+    {
+        // TODO: Query DB for all stores' FolioActual for this doc type
+        // Return true if all FolioActual >= a.Upper
+        return false;
+    }
+} 
