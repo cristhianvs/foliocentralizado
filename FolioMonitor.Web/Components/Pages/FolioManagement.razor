@@ -16,7 +16,7 @@
     <div class="col-md-6 mb-4">
         <div class="p-3 border bg-light">
             <h4>Folios DGI - @GetDocTypeLabel()</h4>
-            <form class="form-inline mb-3" @onsubmit="AddAssignment">
+            <form class="form-inline mb-3" @onsubmit="OnAssignmentSubmit" @onsubmit:preventDefault>
                 <label class="mr-2">New assignment</label>
                 <input type="number" class="form-control mr-2" placeholder="Lower range" @bind="newLower" required />
                 <input type="number" class="form-control mr-2" placeholder="Upper range" @bind="newUpper" required />
@@ -110,7 +110,7 @@
         new FolioThreshold { DocType = "CreditNote", StoreId = "315", Min = 100, Max = 400, Active = true }
     };
 
-    private void AddAssignment()
+    private async Task OnAssignmentSubmit()
     {
         Assignments.Add(new FolioAssignment
         {
@@ -120,6 +120,7 @@
             Upper = newUpper
         });
         newLower = newUpper = 0;
+        StateHasChanged();
     }
 
     private string GetDocTypeLabel() => selectedDocType == "Invoice" ? "Invoice" : "Credit Notes";
