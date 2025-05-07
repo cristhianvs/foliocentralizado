@@ -27,8 +27,10 @@ else
     @foreach (var storeData in groupedStoreData.OrderBy(s => s.StoreCode))
     {
         <div class="card mb-4">
-            <div class="card-header bg-primary text-white">
-                 <h2>Store: @storeData.StoreCode</h2>
+            @* Updated Card Header with Flexbox for layout *@
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                 <h2 class="mb-0">Store: @storeData.StoreCode</h2>
+                 <span class="text-white-50">Monitored At (MX): @ConvertToMexicoCityTime(storeData.LatestTimestamp).ToString("yyyy-MM-dd HH:mm:ss")</span>
             </div>
             <div class="card-body">
                 @* --- Invoice Section for this Store --- *@
@@ -44,7 +46,8 @@ else
                                 <th>End</th>
                                 <th>Current</th>
                                 <th>Available</th>
-                                <th>Monitored At (UTC)</th>
+                                <th>Source Updated</th>
+                                <th>Activo</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -56,7 +59,8 @@ else
                                     <td>@series.FolioFin</td>
                                     <td>@(series.FolioActual?.ToString() ?? "N/A")</td>
                                     <td>@series.FoliosDisponibles</td>
-                                    <td>@series.Timestamp.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                                    <td>@(series.FechaActualizacion?.ToString("yyyy-MM-dd HH:mm:ss") ?? "N/A")</td>
+                                    <td>@(series.Activo ? "Yes" : "No")</td>
                                 </tr>
                             }
                         </tbody>
@@ -82,7 +86,8 @@ else
                                 <th>End</th>
                                 <th>Current</th>
                                 <th>Available</th>
-                                <th>Monitored At (UTC)</th>
+                                <th>Source Updated</th>
+                                <th>Activo</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -94,7 +99,8 @@ else
                                     <td>@series.FolioFin</td>
                                     <td>@(series.FolioActual?.ToString() ?? "N/A")</td>
                                     <td>@series.FoliosDisponibles</td>
-                                     <td>@series.Timestamp.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                                    <td>@(series.FechaActualizacion?.ToString("yyyy-MM-dd HH:mm:ss") ?? "N/A")</td>
+                                    <td>@(series.Activo ? "Yes" : "No")</td>
                                 </tr>
                             }
                         </tbody>
@@ -104,6 +110,49 @@ else
                  {
                       <p><em>No active credit note series found for this store.</em></p>
                  }
+                 
+                 <hr /> @* Separator before rates for this store *@
+                 
+                 @* --- Consumption Rate Section for this Store --- START *@
+                 <h4>Consumption Rate (Average)</h4>
+                 @if (ratesDataByStore != null && ratesDataByStore.TryGetValue(storeData.StoreCode, out var currentStoreRates) && currentStoreRates.Any())
+                 {
+                     <table class="table table-sm table-striped table-bordered mt-2">
+                        <thead class="thead-dark">
+                            <tr>
+                                <th>Document Type</th> @* Added column *@
+                                <th>Module</th>
+                                <th>Interval</th>
+                                <th>Total Consumed</th>
+                                <th>Avg. Rate (Folios/Day)</th>
+                                <th>Notes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var rate in currentStoreRates.OrderBy(r => r.Modulo)) @* Order by module within store *@
+                            {
+                                <tr>
+                                    <td>@MapModuloToDocumentType(rate.Modulo)</td> @* Use helper *@
+                                    <td>@rate.Modulo</td>
+                                    <td>
+                                        @rate.RateIntervalDescription
+                                        <br/>
+                                        <small>(@rate.IntervalStartTime.ToString("dd/MM HH:mm") - @rate.IntervalEndTime.ToString("dd/MM HH:mm"))</small>
+                                    </td>
+                                    <td>@(rate.FoliosConsumed?.ToString() ?? "N/A")</td>
+                                    <td>@(rate.CalculatedRate?.ToString("F2") ?? "N/A")</td> 
+                                    <td>@rate.CalculationNotes</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                 }
+                 else
+                 {
+                    <p><em>No consumption rate data available for this store. (Ensure worker has run at least twice.)</em></p>
+                 }
+                 @* --- Consumption Rate Section for this Store --- END *@
+                 
             </div> @* End card-body *@
         </div> @* End card *@
     }
@@ -114,31 +163,52 @@ else
     private class StoreDisplayData
     {
         public string StoreCode { get; set; } = string.Empty;
+        public DateTime LatestTimestamp { get; set; } // Store the latest timestamp for the header
         public List<FolioSeriesDto> InvoiceSeries { get; set; } = new List<FolioSeriesDto>();
         public List<FolioSeriesDto> CreditNoteSeries { get; set; } = new List<FolioSeriesDto>();
     }
 
     private List<StoreDisplayData>? groupedStoreData;
+    // Change ratesData to a Dictionary keyed by StoreCode
+    private Dictionary<string, List<FolioRateDto>>? ratesDataByStore;
     private string? errorMessage;
+    private TimeZoneInfo? mexicoCityTimeZone;
 
     protected override async Task OnInitializedAsync()
     {
+        // Try to find the Mexico City time zone
+        try
+        {
+            // Use IANA ID first, fallback to Windows ID if needed
+            mexicoCityTimeZone = TimeZoneInfo.FindSystemTimeZoneById("America/Mexico_City") 
+                                 ?? TimeZoneInfo.FindSystemTimeZoneById("Central Standard Time (Mexico)");
+        }
+        catch (TimeZoneNotFoundException)
+        {
+            Console.Error.WriteLine("Mexico City time zone not found on this system.");
+            // Handle error or default to UTC? For now, conversion will fail gracefully.
+        }
+        catch (Exception ex)
+        {
+             Console.Error.WriteLine($"Error finding time zone: {ex.Message}");
+        }
+
         var client = HttpClientFactory.CreateClient("FolioApiClient");
         try
         {
-            // Fetch the data as before (it's flat list grouped by DocType)
             var summaries = await client.GetFromJsonAsync<List<FolioSummaryDto>>("api/folios/summary");
 
             if (summaries != null)
             {
-                // Process and group the data by Store Code
-                var allSeries = summaries.SelectMany(s => s.Series); // Flatten the list
+                var allSeries = summaries.SelectMany(s => s.Series);
                 
                 groupedStoreData = allSeries
-                    .GroupBy(s => s.CodigoSucursal) // Group by Store
+                    .GroupBy(s => s.CodigoSucursal) 
                     .Select(g => new StoreDisplayData
                     {
                         StoreCode = g.Key,
+                        // Find the absolute latest timestamp for this store across all series
+                        LatestTimestamp = g.Max(s => s.Timestamp), 
                         InvoiceSeries = g.Where(s => s.Modulo == "MOD28").ToList(),
                         CreditNoteSeries = g.Where(s => s.Modulo == "MOD29").ToList()
                     })
@@ -146,15 +216,45 @@ else
             }
             else
             {
-                 groupedStoreData = new List<StoreDisplayData>(); // Ensure not null
+                 groupedStoreData = new List<StoreDisplayData>(); 
+            }
+
+            // --- Fetch Rate Data ---
+            var flatRatesData = await client.GetFromJsonAsync<List<FolioRateDto>>("api/folios/consumption-rates");
+            if (flatRatesData != null)
+            {
+                 // Group the fetched rates by Store Code
+                 ratesDataByStore = flatRatesData
+                     .GroupBy(r => r.CodigoSucursal)
+                     .ToDictionary(g => g.Key, g => g.ToList());
+            }
+            else
+            {
+                ratesDataByStore = new Dictionary<string, List<FolioRateDto>>();
             }
         }
         catch (Exception ex)
         {
-            // Log the exception details if necessary
-            errorMessage = ex.Message;
-            Console.Error.WriteLine($"Error fetching or processing folio data: {ex}"); // Log full error
+            errorMessage = $"Error fetching data: {ex.Message}"; 
+            Console.Error.WriteLine($"Error fetching or processing folio data: {ex}"); 
         }
+    }
+
+    private DateTime ConvertToMexicoCityTime(DateTime utcDateTime)
+    {
+        if (mexicoCityTimeZone == null) return utcDateTime; // Return UTC if timezone not found
+        
+        // Ensure the input DateTime kind is UTC
+        if (utcDateTime.Kind == DateTimeKind.Unspecified)
+        {
+             utcDateTime = DateTime.SpecifyKind(utcDateTime, DateTimeKind.Utc);
+        }
+        else if (utcDateTime.Kind == DateTimeKind.Local)
+        {
+            utcDateTime = utcDateTime.ToUniversalTime();
+        }
+
+        return TimeZoneInfo.ConvertTimeFromUtc(utcDateTime, mexicoCityTimeZone);
     }
 
     private string GetRowClass(int available)
@@ -163,5 +263,16 @@ else
         if (available <= 20) return "table-danger";
         if (available <= 100) return "table-warning";
         return ""; // Default or table-success
+    }
+    
+    // Add this helper method (copied from FoliosController)
+    private string MapModuloToDocumentType(string modulo)
+    {
+        return modulo switch
+        {
+            "MOD28" => "Invoice",
+            "MOD29" => "Credit Note",
+            _ => "Unknown"
+        };
     }
 }
